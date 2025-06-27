@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Video Game</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: black;
+            overflow: hidden;
+        }
+
+        #videoPlayer {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            transform: scale(0.9);
+            /* Slight zoom out */
+            background-color: black;
+        }
+
+        #fadeOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            z-index: 5;
+        }
+
+        #error {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 1.5rem;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 10;
+        }
+
+        .control-button {
+            position: absolute;
+            bottom: 20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 2rem;
+            border: none;
+            border-radius: 50%;
+            z-index: 20;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #leftBtn {
+            left: 20px;
+        }
+
+        #rightBtn {
+            right: 20px;
+        }
+
+        .control-button:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="fadeOverlay"></div>
+    <div id="error">Wrong side</div>
+    <video id="videoPlayer" autoplay muted></video>
+
+    <!-- Mobile Buttons -->
+    <button id="leftBtn" class="control-button">◀</button>
+    <button id="rightBtn" class="control-button">▶</button>
+
+    <script>
+        const videoElement = document.getElementById('videoPlayer');
+        const fadeOverlay = document.getElementById('fadeOverlay');
+        const errorMsg = document.getElementById('error');
+
+        const positions = ['A', 'B', 'C', 'D'];
+        let currentIndex = 0;
+        let isPlaying = false;
+
+        const transitions = {
+            A: { right: { video: 'interactive-demo-R1.mp4', next: 'B' }, left: null },
+            B: {
+                right: { video: 'interactive-demo-R2.mp4', next: 'C' },
+                left: { video: 'interactive-demo-L1.mp4', next: 'A' }
+            },
+            C: {
+                right: { video: 'interactive-demo-R3.mp4', next: 'D' },
+                left: { video: 'interactive-demo-L2.mp4', next: 'B' }
+            },
+            D: { right: null, left: { video: 'interactive-demo-L3.mp4', next: 'C' } }
+        };
+
+        function showError() {
+            errorMsg.style.display = 'block';
+            setTimeout(() => errorMsg.style.display = 'none', 1000);
+        }
+
+        function fadeIn(callback) {
+            fadeOverlay.style.opacity = '1';
+            setTimeout(() => {
+                callback();
+                fadeOverlay.style.opacity = '0';
+            }, 600);
+        }
+
+        function playVideoAndMove(videoSrc, nextPosition) {
+            isPlaying = true;
+            fadeIn(() => {
+                videoElement.src = videoSrc;
+                videoElement.play();
+                videoElement.onended = () => {
+                    isPlaying = false;
+                    currentIndex = positions.indexOf(nextPosition);
+                };
+            });
+        }
+
+        function handleDirection(dir) {
+            // Handle override if video is playing
+            if (isPlaying) {
+                videoElement.pause();
+                videoElement.currentTime = videoElement.duration;
+                isPlaying = false;
+
+                const currentPos = positions[currentIndex];
+                const lastAction = Object.entries(transitions[currentPos]).find(
+                    ([, action]) => action?.video === videoElement.src.split('/').pop()
+                );
+                if (lastAction && transitions[currentPos][lastAction[0]]) {
+                    currentIndex = positions.indexOf(transitions[currentPos][lastAction[0]].next);
+                }
+            }
+
+            const currentPos = positions[currentIndex];
+            const action = transitions[currentPos][dir];
+            if (action) {
+                playVideoAndMove(action.video, action.next);
+            } else {
+                showError();
+            }
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+                handleDirection('left');
+            } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+                handleDirection('right');
+            }
+        });
+
+        // Button support
+        document.getElementById('leftBtn').addEventListener('click', () => handleDirection('left'));
+        document.getElementById('rightBtn').addEventListener('click', () => handleDirection('right'));
+    </script>
+</body>
+
+</html>
